@@ -1,0 +1,71 @@
+Here is the full, formal project proposal.
+
+---
+
+## Project Proposal: A Scalable and Highly Resilient Real-Time Bidding Service
+
+### 1. Overview
+
+We will build a high-concurrency, low-latency auction platform. Clients will be able to view items, place bids via an API, and receive real-time bid updates through WebSockets.
+
+The primary challenges for this project are:
+1.  **Write Contention:** Managing the extreme concurrent write requests on popular items.
+2.  **Read Fan-Out:** Broadcasting updates to a massive number of concurrent viewers with minimal delay.
+
+The system must be designed for high availability and horizontal scalability to handle unpredictable, bursty traffic.
+
+---
+### 2. System Architecture
+
+The system will be composed of five **decoupled components that communicate asynchronously** to ensure resilience and high performance.
+
+1.  **API Gateway / Bidding Service (Go):**
+    A stateless service responsible for receiving `GET /items/{id}` (read) and `POST /items/{id}/bid` (write) requests, and performing request validation.
+
+2.  **High-Speed Cache / Real-Time State Store (Redis):**
+    This acts as the "Single Source of Truth" for the real-time state of the auction (e.g., current highest bid). It will handle high-concurrency writes using **atomic operations** (like Lua scripts). It will also serve as the message bus for the **real-time broadcast path** via its **Redis Pub/Sub** feature.
+
+3.  **Real-Time Broadcast Service (Go with WebSockets):**
+    Manages all persistent WebSocket connections. It will **directly subscribe to Redis Pub/Sub channels** to receive new bid notifications near-instantly and fan them out to thousands of clients.
+
+4.  **Message Queue (NATS or Kafka):**
+    **Used exclusively for the archival path**, decoupling the high-speed API service from the slower persistent database. When a valid bid is accepted by Redis, the Bidding Service will publish an event to this queue for background persistence.
+
+5.  **Persistent Database (PostgreSQL):**
+    The archival storage layer. An independent, asynchronous worker will consume events from the **NATS/Kafka queue** and write the full bid history to the database for long-term storage and analysis.
+
+---
+### 3. Core Scaling Requirements
+
+* **Write-Path Concurrency:** The system must be able to handle thousands of simultaneous `POST /bid` requests targeting the *same item* without data corruption.
+* **Read-Path Fan-Out:** The system must be able to broadcast a single bid event to tens of thousands of concurrent WebSocket clients with low latency.
+* **State Management:** The system must handle a growing number of active auctions. The load on the persistent database must be minimized by leveraging Redis for all "hot-path" operations.
+
+---
+### 4. Experiments to Run
+
+#### Experiment 1: Write Contention Test (Redis Atomic Strategies)
+
+* **Goal:** Determine the maximum bids per second (RPS) the system can process for a single, highly contested item and identify the bottleneck.
+* **Method:** Using Locust, we will simulate a "bidding war" by sending a massive number of `POST` requests to a single item's endpoint. We will compare two different, distributed-safe Redis concurrency strategies:
+    1.  **Optimistic Locking:** Using Redis's `WATCH/MULTI/EXEC` commands.
+    2.  **Atomic Server-Side Execution:** Using the `EVAL` command to execute a **Lua script** that performs the "compare-and-set" logic atomically on the Redis server.
+* **Key Metrics:** Max achievable RPS; P95 and P99 latency for `POST` requests; error rate; and the transaction failure/retry rate for the `WATCH/MULTI/EXEC` strategy.
+
+#### Experiment 2: WebSocket Fan-Out Scalability Test
+
+* **Goal:** Measure the broadcast latency and resource cost as the number of concurrent viewers increases.
+* **Method:** We will build a test harness to establish a large number of concurrent WebSocket connections (e.g., 100, 1,000, 10,000), listening for updates on one item. We will then submit a single bid and measure the **end-to-end time** it takes for the update message to be received by all clients.
+* **Key Metrics:** P99 broadcast latency; CPU/memory utilization of the Real-Time Broadcast Service instances as the connection count scales.
+
+#### Experiment 3: Resilience & Write-Path Availability Test
+
+* **Goal:** Verify that the system's throughput scales horizontally and, more importantly, that the **write path** (accepting bids) remains highly available during backend component failures.
+* **Method:** We will deploy the full architecture on ECS Fargate. We will run a mixed-load test (bidders and viewers) and scale the API Gateway and Broadcast Service instances from 1 to 4. During the peak load test, we will inject the following failures:
+    1.  **Test 3a (Read-Path Failure):** Forcibly kill one **Broadcast Service** instance.
+    2.  **Test 3b (Archival DB Failure):** Simulate a **PostgreSQL Database** crash or connection loss.
+    3.  **Test 3c (Archival Queue Failure):** Simulate a **NATS/Kafka Message Queue** service outage.
+* **Key Metrics:**
+    1.  Does the total system throughput scale linearly with the number of instances?
+    2.  Do WebSocket clients successfully reconnect after the broadcast service failure?
+    3.  **(Critical!)** During the **PostgreSQL** and **NATS/Kafka** failures, do the `POST /bid` RPS and latency remain **completely unaffected**?

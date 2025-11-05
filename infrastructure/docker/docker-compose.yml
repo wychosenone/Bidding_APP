@@ -1,0 +1,124 @@
+version: '3.8'
+
+services:
+  # Redis - In-memory cache and pub/sub message bus
+  redis:
+    image: redis:7-alpine
+    container_name: bidding-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - bidding-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # NATS - Lightweight message queue for archival path
+  nats:
+    image: nats:2-alpine
+    container_name: bidding-nats
+    ports:
+      - "4222:4222"  # Client connections
+      - "8222:8222"  # HTTP monitoring
+    command: "-js"   # Enable JetStream
+    networks:
+      - bidding-network
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:8222/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # PostgreSQL - Persistent database for archival storage
+  postgres:
+    image: postgres:15-alpine
+    container_name: bidding-postgres
+    environment:
+      POSTGRES_DB: bidding
+      POSTGRES_USER: bidding
+      POSTGRES_PASSWORD: password
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - bidding-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U bidding"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # API Gateway - HTTP API for bidding operations
+  api-gateway:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.api-gateway
+    container_name: bidding-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_ADDR: ":8080"
+      REDIS_ADDR: "redis:6379"
+      REDIS_PASSWORD: ""
+      REDIS_DB: "0"
+      NATS_URL: "nats://nats:4222"
+    depends_on:
+      redis:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    networks:
+      - bidding-network
+    restart: unless-stopped
+
+  # Broadcast Service - WebSocket server for real-time updates
+  broadcast-service:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.broadcast-service
+    container_name: bidding-broadcast
+    ports:
+      - "8081:8081"
+    environment:
+      SERVER_ADDR: ":8081"
+      REDIS_ADDR: "redis:6379"
+      REDIS_PASSWORD: ""
+      REDIS_DB: "0"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - bidding-network
+    restart: unless-stopped
+
+  # Archival Worker - Background worker for database persistence
+  archival-worker:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.archival-worker
+    container_name: bidding-archival-worker
+    environment:
+      POSTGRES_URL: "postgres://bidding:password@postgres:5432/bidding?sslmode=disable"
+      NATS_URL: "nats://nats:4222"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nats:
+        condition: service_healthy
+    networks:
+      - bidding-network
+    restart: unless-stopped
+
+networks:
+  bidding-network:
+    driver: bridge
+
+volumes:
+  redis-data:
+  postgres-data:

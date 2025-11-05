@@ -1,0 +1,33 @@
+# Build stage
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+
+# Copy go mod files
+COPY go.work* ./
+COPY shared/go.mod shared/go.sum ./shared/
+COPY archival-worker/go.mod archival-worker/go.sum ./archival-worker/
+
+# Download dependencies
+WORKDIR /app/archival-worker
+RUN go mod download
+
+# Copy source code
+WORKDIR /app
+COPY shared/ ./shared/
+COPY archival-worker/ ./archival-worker/
+
+# Build the application
+WORKDIR /app/archival-worker
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd
+
+# Final stage
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
+
+COPY --from=builder /app/archival-worker/main .
+
+CMD ["./main"]

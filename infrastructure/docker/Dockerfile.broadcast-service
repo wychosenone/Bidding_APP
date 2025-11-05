@@ -1,0 +1,35 @@
+# Build stage
+FROM golang:1.21-alpine AS builder
+
+WORKDIR /app
+
+# Copy go mod files
+COPY go.work* ./
+COPY shared/go.mod shared/go.sum ./shared/
+COPY broadcast-service/go.mod broadcast-service/go.sum ./broadcast-service/
+
+# Download dependencies
+WORKDIR /app/broadcast-service
+RUN go mod download
+
+# Copy source code
+WORKDIR /app
+COPY shared/ ./shared/
+COPY broadcast-service/ ./broadcast-service/
+
+# Build the application
+WORKDIR /app/broadcast-service
+RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main ./cmd
+
+# Final stage
+FROM alpine:latest
+
+RUN apk --no-cache add ca-certificates
+
+WORKDIR /root/
+
+COPY --from=builder /app/broadcast-service/main .
+
+EXPOSE 8081
+
+CMD ["./main"]
