@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
 	"os"
@@ -9,9 +10,11 @@ import (
 	"syscall"
 	"time"
 
-	redisClient "github.com/aaronwang/bidding-app/broadcast-service/internal/redis"
+	"github.com/nats-io/nats.go"
+
 	wsHandler "github.com/aaronwang/bidding-app/broadcast-service/internal/websocket"
 	"github.com/aaronwang/bidding-app/shared/config"
+	"github.com/aaronwang/bidding-app/shared/models"
 )
 
 func main() {
@@ -20,23 +23,15 @@ func main() {
 	// Load configuration
 	cfg := loadConfig()
 
-	// Initialize Redis subscriber
-	fmt.Println("Connecting to Redis...")
-	subscriber, err := redisClient.NewSubscriber(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
+	// Connect to NATS
+	fmt.Println("Connecting to NATS...")
+	natsConn, err := nats.Connect(cfg.NatsURL)
 	if err != nil {
-		fmt.Printf("Failed to connect to Redis: %v\n", err)
+		fmt.Printf("Failed to connect to NATS: %v\n", err)
 		os.Exit(1)
 	}
-	defer subscriber.Close()
-	fmt.Println("Connected to Redis")
-
-	// Subscribe to all bid events using pattern matching
-	ctx := context.Background()
-	if err := subscriber.SubscribeToPattern(ctx, "bid_events:*"); err != nil {
-		fmt.Printf("Failed to subscribe to Redis channels: %v\n", err)
-		os.Exit(1)
-	}
-	fmt.Println("Subscribed to bid events")
+	defer natsConn.Close()
+	fmt.Println("Connected to NATS")
 
 	// Initialize WebSocket manager
 	wsManager := wsHandler.NewManager()
@@ -45,26 +40,34 @@ func main() {
 	go wsManager.Run()
 	fmt.Println("WebSocket manager started")
 
-	// Create a channel for Redis messages
-	messageChan := make(chan *redisClient.Message, 256)
+	// Subscribe to all bid events using NATS wildcard
+	// bid_events.* matches bid_events.item1, bid_events.item2, etc.
+	fmt.Println("Subscribing to NATS bid events...")
+	_, err = natsConn.Subscribe("bid_events.*", func(msg *nats.Msg) {
+		forwardStart := time.Now()
 
-	// Start Redis subscriber in a goroutine
-	go func() {
-		fmt.Println("Listening for Redis Pub/Sub messages...")
-		if err := subscriber.Listen(ctx, messageChan); err != nil {
-			fmt.Printf("Redis listener error: %v\n", err)
+		// Parse the bid event
+		var bidEvent models.BidEvent
+		if err := json.Unmarshal(msg.Data, &bidEvent); err != nil {
+			fmt.Printf("Error unmarshaling bid event: %v\n", err)
+			return
 		}
-	}()
 
-	// Start message forwarder (Redis -> WebSocket)
-	// This is the key integration point!
-	go func() {
-		fmt.Println("Starting message forwarder (Redis Pub/Sub -> WebSocket)...")
-		for msg := range messageChan {
-			// Forward Redis Pub/Sub message to WebSocket clients
-			wsManager.Broadcast(msg.ItemID, []byte(msg.Payload))
-		}
-	}()
+		// Extract itemID from subject (bid_events.{itemID})
+		// Subject format: "bid_events.item123"
+		itemID := bidEvent.ItemID
+
+		// Direct broadcast to all WebSocket clients watching this item
+		wsManager.BroadcastDirect(itemID, msg.Data)
+
+		forwardElapsed := time.Since(forwardStart).Microseconds()
+		fmt.Printf("[NATS→WS] Forwarded bid for item %s in %dµs\n", itemID, forwardElapsed)
+	})
+	if err != nil {
+		fmt.Printf("Failed to subscribe to NATS: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("Subscribed to bid events via NATS")
 
 	// Initialize HTTP server for WebSocket connections
 	handler := wsHandler.NewHandler(wsManager)
@@ -107,18 +110,14 @@ func main() {
 
 // Config holds application configuration
 type Config struct {
-	ServerAddr    string
-	RedisAddr     string
-	RedisPassword string
-	RedisDB       int
+	ServerAddr string
+	NatsURL    string
 }
 
 // loadConfig loads configuration from environment variables
 func loadConfig() *Config {
 	return &Config{
-		ServerAddr:    config.GetEnv("SERVER_ADDR", ":8081"),
-		RedisAddr:     config.GetEnv("REDIS_ADDR", "localhost:6379"),
-		RedisPassword: config.GetEnv("REDIS_PASSWORD", ""),
-		RedisDB:       config.GetEnvInt("REDIS_DB", 0),
+		ServerAddr: config.GetEnv("SERVER_ADDR", ":8081"),
+		NatsURL:    config.GetEnv("NATS_URL", "nats://localhost:4222"),
 	}
 }

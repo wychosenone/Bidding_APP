@@ -1,6 +1,6 @@
 module github.com/aaronwang/bidding-app/archival-worker
 
-go 1.25.1
+go 1.23.0
 
 replace github.com/aaronwang/bidding-app/shared => ../shared
 

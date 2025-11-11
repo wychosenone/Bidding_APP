@@ -22,6 +22,16 @@ func NewClient(addr, password string, db int) (*Client, error) {
 		Addr:     addr,
 		Password: password,
 		DB:       db,
+
+		// Connection pool settings for high throughput
+		PoolSize:     100,              // Increase pool size for concurrent requests
+		MinIdleConns: 10,               // Keep minimum idle connections ready
+		PoolTimeout:  10 * time.Second, // Wait up to 10s for a connection from pool
+
+		// Timeout settings
+		DialTimeout:  5 * time.Second,
+		ReadTimeout:  3 * time.Second,
+		WriteTimeout: 3 * time.Second,
 	})
 
 	// Test connection
@@ -151,7 +161,16 @@ func (c *Client) PublishBidEvent(ctx context.Context, itemID string, event inter
 	}
 
 	channel := fmt.Sprintf("bid_events:%s", itemID)
-	return c.client.Publish(ctx, channel, eventJSON).Err()
+	fmt.Printf("[PUBLISH] Publishing to channel: %s (payload size: %d bytes)\n", channel, len(eventJSON))
+
+	err = c.client.Publish(ctx, channel, eventJSON).Err()
+	if err != nil {
+		fmt.Printf("[PUBLISH] ERROR publishing to %s: %v\n", channel, err)
+		return err
+	}
+
+	fmt.Printf("[PUBLISH] Successfully published to %s\n", channel)
+	return nil
 }
 
 // Close closes the Redis connection

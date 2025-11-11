@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -59,7 +60,10 @@ func (m *Manager) Run() {
 			m.unregisterClient(client)
 
 		case message := <-m.broadcast:
+			receiveTime := time.Now()
 			m.broadcastToItem(message.ItemID, message.Payload)
+			totalElapsed := time.Since(receiveTime).Microseconds()
+			fmt.Printf("[TIMING] Total broadcast processing took %dµs\n", totalElapsed)
 		}
 	}
 }
@@ -80,6 +84,11 @@ func (m *Manager) Broadcast(itemID string, payload []byte) {
 		ItemID:  itemID,
 		Payload: payload,
 	}
+}
+
+// BroadcastDirect broadcasts directly without intermediate channel for lower latency
+func (m *Manager) BroadcastDirect(itemID string, payload []byte) {
+	m.broadcastToItem(itemID, payload)
 }
 
 // registerClient adds a client to the subscribers map
@@ -111,25 +120,86 @@ func (m *Manager) unregisterClient(client *Client) {
 }
 
 // broadcastToItem sends a message to all clients watching a specific item
+// Uses parallel broadcast with worker goroutines for better performance
 func (m *Manager) broadcastToItem(itemID string, payload []byte) {
+	startTime := time.Now()
+
 	if subscribers, ok := m.subscribers.Load(itemID); ok {
 		subscriberMap := subscribers.(*sync.Map)
 
-		count := 0
+		// Collect all clients first
+		var clients []*Client
 		subscriberMap.Range(func(key, value interface{}) bool {
 			client := key.(*Client)
-			select {
-			case client.Send <- payload:
-				count++
-			default:
-				// Client's send channel is full, disconnect them
-				// This prevents one slow client from blocking others
-				m.UnregisterClient(client)
-			}
+			clients = append(clients, client)
 			return true
 		})
 
-		fmt.Printf("Broadcasted to %d clients watching item %s\n", count, itemID)
+		if len(clients) == 0 {
+			return
+		}
+
+		// For small-medium client counts, use sequential broadcast
+		// Sequential is faster than parallel for <500 clients due to lower overhead
+		if len(clients) < 500 {
+			count := 0
+			for _, client := range clients {
+				select {
+				case client.Send <- payload:
+					count++
+				default:
+					m.UnregisterClient(client)
+				}
+			}
+			elapsed := time.Since(startTime).Microseconds()
+			if count > 0 {
+				fmt.Printf("[TIMING] Broadcasted to %d clients (sequential) in %dµs (%.2fµs/client)\n",
+					count, elapsed, float64(elapsed)/float64(count))
+			}
+			return
+		}
+
+		// For larger counts, use parallel broadcast with workers
+		numWorkers := 10
+		batchSize := (len(clients) + numWorkers - 1) / numWorkers
+
+		var wg sync.WaitGroup
+		successCount := atomic.Int32{}
+
+		for i := 0; i < numWorkers; i++ {
+			start := i * batchSize
+			end := start + batchSize
+			if end > len(clients) {
+				end = len(clients)
+			}
+			if start >= len(clients) {
+				break
+			}
+
+			batch := clients[start:end]
+			wg.Add(1)
+
+			go func(batch []*Client) {
+				defer wg.Done()
+				for _, client := range batch {
+					select {
+					case client.Send <- payload:
+						successCount.Add(1)
+					default:
+						m.UnregisterClient(client)
+					}
+				}
+			}(batch)
+		}
+
+		wg.Wait()
+
+		elapsed := time.Since(startTime).Microseconds()
+		count := successCount.Load()
+		if count > 0 {
+			fmt.Printf("[TIMING] Broadcasted to %d clients (parallel, %d workers) in %dµs (%.2fµs/client)\n",
+				count, numWorkers, elapsed, float64(elapsed)/float64(count))
+		}
 	}
 }
 

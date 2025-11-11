@@ -1,0 +1,45 @@
+Establishing 1000 WebSocket connections...
+Successfully connected 1000 clients
+
+Starting fan-out test with 5 bids, 3s interval...
+Watching 1000 connections
+
+Bid 1/5: $100.00 sent at 22:33:34.857
+  Received by: 1000/1000 clients
+  Latency - Min: 61.39ms, Median: 70.63ms, Max: 76.98ms
+  P95: 76.18ms, P99: 76.93ms
+Bid 2/5: $101.00 sent at 22:33:37.936
+  Received by: 1000/1000 clients
+  Latency - Min: 46.35ms, Median: 63.96ms, Max: 72.38ms
+  P95: 72.01ms, P99: 72.31ms
+Bid 3/5: $102.00 sent at 22:33:41.009
+  Received by: 1000/1000 clients
+  Latency - Min: 49.92ms, Median: 62.82ms, Max: 69.80ms
+  P95: 69.48ms, P99: 69.75ms
+Bid 4/5: $103.00 sent at 22:33:44.081
+  Received by: 1000/1000 clients
+  Latency - Min: 40.55ms, Median: 55.88ms, Max: 64.66ms
+  P95: 64.35ms, P99: 64.60ms
+Bid 5/5: $104.00 sent at 22:33:47.148
+  Received by: 1000/1000 clients
+  Latency - Min: 61.03ms, Median: 72.74ms, Max: 81.77ms
+  P95: 81.46ms, P99: 81.72ms
+
+============================================================
+EXPERIMENT 2: WebSocket Fan-Out Test Results
+============================================================
+Configuration:
+  Connections: 1000
+  Total bids sent: 5
+  Total messages received: 5000
+
+Overall Latency Statistics:
+  Min: 40.55ms
+  Median: 65.02ms
+  Mean: 64.71ms
+  Max: 81.77ms
+  P50: 65.02ms
+  P95: 78.94ms
+  P99: 81.46ms
+============================================================
+

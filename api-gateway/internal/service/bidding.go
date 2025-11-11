@@ -69,14 +69,20 @@ func (s *BiddingService) PlaceBid(ctx context.Context, itemID string, req *model
 		Timestamp:   time.Now().UTC(),
 	}
 
-	// Publish to Redis Pub/Sub for real-time broadcast (non-blocking, best effort)
-	// Even if this fails, the bid is still recorded in Redis
+	// Publish to NATS for real-time broadcast (non-blocking, best effort)
+	// NATS is much faster than Redis Pub/Sub (~1ms vs ~40ms)
 	go func() {
-		pubCtx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
-		defer cancel()
-		if err := s.redis.PublishBidEvent(pubCtx, itemID, bidEvent); err != nil {
-			// Log error but don't fail the bid
-			fmt.Printf("Warning: failed to publish bid event to Redis Pub/Sub: %v\n", err)
+		eventJSON, err := json.Marshal(bidEvent)
+		if err != nil {
+			fmt.Printf("Warning: failed to marshal bid event for NATS: %v\n", err)
+			return
+		}
+
+		subject := fmt.Sprintf("bid_events.%s", itemID)
+		if err := s.nats.Publish(subject, eventJSON); err != nil {
+			fmt.Printf("Warning: failed to publish bid event to NATS: %v\n", err)
+		} else {
+			fmt.Printf("[NATS] Published bid event to subject: %s\n", subject)
 		}
 	}()
 
