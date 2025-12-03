@@ -4,6 +4,10 @@ go 1.23.0
 
 require (
 	github.com/aaronwang/bidding-app/shared v0.0.0-00010101000000-000000000000
+	github.com/aws/aws-sdk-go-v2 v1.32.2
+	github.com/aws/aws-sdk-go-v2/config v1.28.0
+	github.com/aws/aws-sdk-go-v2/credentials v1.17.41
+	github.com/aws/aws-sdk-go-v2/service/s3 v1.65.3
 	github.com/google/uuid v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/nats-io/nats.go v1.47.0

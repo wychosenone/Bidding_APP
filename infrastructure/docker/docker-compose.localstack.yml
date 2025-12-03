@@ -1,0 +1,114 @@
+version: '3.8'
+
+# LocalStack-based deployment for performance comparison
+# Simulates AWS services locally for testing
+
+services:
+  # LocalStack - Simulates AWS services (ElastiCache, etc)
+  localstack:
+    image: localstack/localstack:latest
+    container_name: localstack-aws
+    ports:
+      - "4566:4566"  # LocalStack gateway (all AWS APIs)
+      - "4510-4559:4510-4559"  # External service ports
+    environment:
+      - SERVICES=elasticache,ecs,ecr,ec2
+      - DEBUG=1
+      - DOCKER_HOST=unix:///var/run/docker.sock
+      - LOCALSTACK_HOST=localhost:4566
+    volumes:
+      - "/var/run/docker.sock:/var/run/docker.sock"
+      - "./localstack-data:/var/lib/localstack"
+    networks:
+      - localstack-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:4566/_localstack/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Redis - Use local Redis instead of LocalStack ElastiCache for simplicity
+  redis:
+    image: redis:7-alpine
+    container_name: localstack-redis
+    ports:
+      - "6379:6379"
+    command: redis-server --appendonly yes
+    networks:
+      - localstack-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # NATS - Message bus
+  nats:
+    image: nats:2-alpine
+    container_name: localstack-nats
+    ports:
+      - "4222:4222"
+      - "8222:8222"
+    command: "-js -m 8222"
+    networks:
+      - localstack-network
+
+  # API Gateway
+  api-gateway:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.api-gateway
+    container_name: localstack-api-gateway
+    ports:
+      - "8080:8080"
+    environment:
+      SERVER_ADDR: ":8080"
+      REDIS_ADDR: "redis:6379"
+      REDIS_PASSWORD: ""
+      REDIS_DB: "0"
+      REDIS_STRATEGY: "${REDIS_STRATEGY:-lua}"  # lua or optimistic (default: lua)
+      NATS_URL: "nats://nats:4222"
+      AWS_ENDPOINT_URL: "http://localstack:4566"  # Point to LocalStack
+      AWS_REGION: "us-west-2"
+      AWS_ACCESS_KEY_ID: "test"
+      AWS_SECRET_ACCESS_KEY: "test"
+    depends_on:
+      - redis
+      - nats
+      - localstack
+    networks:
+      - localstack-network
+    restart: unless-stopped
+
+  # Broadcast Service
+  broadcast-service:
+    build:
+      context: ../..
+      dockerfile: infrastructure/docker/Dockerfile.broadcast-service
+    container_name: localstack-broadcast
+    ports:
+      - "8081:8081"
+    environment:
+      SERVER_ADDR: ":8081"
+      REDIS_ADDR: "redis:6379"
+      REDIS_PASSWORD: ""
+      REDIS_DB: "0"
+      NATS_URL: "nats://nats:4222"
+      AWS_ENDPOINT_URL: "http://localstack:4566"
+      AWS_REGION: "us-west-2"
+      AWS_ACCESS_KEY_ID: "test"
+      AWS_SECRET_ACCESS_KEY: "test"
+    depends_on:
+      - redis
+      - nats
+      - localstack
+    networks:
+      - localstack-network
+    restart: unless-stopped
+
+networks:
+  localstack-network:
+    driver: bridge
+
+volumes:
+  localstack-data:

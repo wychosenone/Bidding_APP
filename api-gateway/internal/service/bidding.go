@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"sync"
 	"time"
 
 	"github.com/aaronwang/bidding-app/shared/models"
@@ -15,8 +16,9 @@ import (
 
 // BiddingService handles the business logic for bidding operations
 type BiddingService struct {
-	redis *redisClient.Client
-	nats  *nats.Conn
+	redis      *redisClient.Client
+	nats       *nats.Conn
+	priceCache sync.Map // Local cache for current bid prices (itemID -> float64)
 }
 
 // NewBiddingService creates a new bidding service
@@ -29,9 +31,10 @@ func NewBiddingService(redis *redisClient.Client, natsConn *nats.Conn) *BiddingS
 
 // PlaceBid handles the complete bid placement workflow:
 // 1. Validate bid (business rules)
-// 2. Attempt atomic update in Redis
-// 3. If successful, publish to Redis Pub/Sub for real-time broadcast
-// 4. If successful, publish to NATS for archival
+// 2. Pre-filter using local cache (fast rejection)
+// 3. Attempt atomic update in Redis
+// 4. If successful, publish to Redis Pub/Sub for real-time broadcast
+// 5. If successful, publish to NATS for archival
 func (s *BiddingService) PlaceBid(ctx context.Context, itemID string, req *models.BidRequest) (*models.BidResponse, error) {
 	// Business validation
 	if req.Amount <= 0 {
@@ -41,7 +44,42 @@ func (s *BiddingService) PlaceBid(ctx context.Context, itemID string, req *model
 		}, nil
 	}
 
-	// Attempt atomic bid in Redis
+	// Pre-filter: Check local cache before calling Redis
+	// This reduces Redis load by quickly rejecting bids that are obviously too low
+	if cachedPrice, ok := s.priceCache.Load(itemID); ok {
+		cachedValue := cachedPrice.(float64)
+		if req.Amount <= cachedValue {
+			// Bid appears too low based on cache, but verify with Redis
+			// This prevents stale cache from incorrectly rejecting valid bids
+			actualPrice, _, err := s.redis.GetItemBid(ctx, itemID)
+			if err != nil {
+				// Redis error, proceed with cache value
+				fmt.Printf("[CACHE-FILTER] Redis error, using cached price: %v\n", err)
+				actualPrice = cachedValue
+			} else if actualPrice != cachedValue {
+				// Cache was stale! Update it with actual Redis value
+				fmt.Printf("[CACHE-SYNC] Cache mismatch - cached: $%.2f, actual: $%.2f, updating cache\n",
+					cachedValue, actualPrice)
+				s.priceCache.Store(itemID, actualPrice)
+			}
+
+			// Final decision based on actual Redis price
+			if req.Amount <= actualPrice {
+				fmt.Printf("[CACHE-FILTER] Rejected bid $%.2f (current price: $%.2f) for item %s\n",
+					req.Amount, actualPrice, itemID)
+				return &models.BidResponse{
+					Success:    false,
+					Message:    fmt.Sprintf("Bid too low. Current highest bid is $%.2f", actualPrice),
+					CurrentBid: actualPrice,
+					YourBid:    req.Amount,
+					IsHighest:  false,
+				}, nil
+			}
+			// Bid is actually higher than Redis price, continue to atomic update
+		}
+	}
+
+	// Passed pre-filter: attempt atomic bid in Redis
 	result, err := s.redis.PlaceBid(ctx, itemID, req.UserID, req.Amount)
 	if err != nil {
 		return nil, fmt.Errorf("failed to place bid: %w", err)
@@ -49,6 +87,9 @@ func (s *BiddingService) PlaceBid(ctx context.Context, itemID string, req *model
 
 	// Check if bid was successful
 	if !result.Success {
+		// Update cache with current price (even on failure, to keep cache fresh)
+		s.priceCache.Store(itemID, result.CurrentBid)
+
 		return &models.BidResponse{
 			Success:    false,
 			Message:    fmt.Sprintf("Bid too low. Current highest bid is $%.2f", result.CurrentBid),
@@ -57,6 +98,10 @@ func (s *BiddingService) PlaceBid(ctx context.Context, itemID string, req *model
 			IsHighest:  false,
 		}, nil
 	}
+
+	// Update cache with new successful bid
+	s.priceCache.Store(itemID, req.Amount)
+	fmt.Printf("[CACHE-UPDATE] Updated cache for item %s: $%.2f\n", itemID, req.Amount)
 
 	// Bid successful! Create event for downstream systems
 	bidEvent := &models.BidEvent{

@@ -1,7 +1,3 @@
-Here is the full, formal project proposal.
-
----
-
 ## Project Proposal: A Scalable and Highly Resilient Real-Time Bidding Service
 
 ### 1. Overview
@@ -50,7 +46,7 @@ The system will be composed of five **decoupled components that communicate asyn
 * **Method:** Using Locust, we will simulate a "bidding war" by sending a massive number of `POST` requests to a single item's endpoint. We will compare two different, distributed-safe Redis concurrency strategies:
     1.  **Optimistic Locking:** Using Redis's `WATCH/MULTI/EXEC` commands.
     2.  **Atomic Server-Side Execution:** Using the `EVAL` command to execute a **Lua script** that performs the "compare-and-set" logic atomically on the Redis server.
-* **Key Metrics:** Max achievable RPS; P95 and P99 latency for `POST` requests; error rate; and the transaction failure/retry rate for the `WATCH/MULTI/EXEC` strategy.
+* **Key Metrics:** Max achievable RPS; P95 and P99 latency for `POST` requests; error rate; and the transaction failure/retry rate for the `WATCH/MULTI/EXEC` strategy. Additionally, we will (1) verify **correctness** under contention (no lost updates and the final highest bid is consistent with all submitted bids), and (2) record Redis CPU utilization and slowlog statistics to identify saturation points of each strategy.
 
 #### Experiment 2: WebSocket Fan-Out Scalability Test
 

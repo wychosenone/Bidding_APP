@@ -14,10 +14,16 @@ type Client struct {
 	client *redis.Client
 	// Lua script for atomic compare-and-set bid operation
 	bidScript *redis.Script
+	// Strategy: "lua" or "optimistic"
+	strategy string
 }
 
-// NewClient creates a new Redis client
-func NewClient(addr, password string, db int) (*Client, error) {
+// NewClient creates a new Redis client with specified strategy
+// strategy can be "lua" (default) or "optimistic"
+func NewClient(addr, password string, db int, strategy string) (*Client, error) {
+	if strategy == "" {
+		strategy = "lua" // default to Lua
+	}
 	rdb := redis.NewClient(&redis.Options{
 		Addr:     addr,
 		Password: password,
@@ -76,9 +82,11 @@ func NewClient(addr, password string, db int) (*Client, error) {
 		end
 	`)
 
+	fmt.Printf("[REDIS] Initialized with strategy: %s\n", strategy)
 	return &Client{
 		client:    rdb,
 		bidScript: bidScript,
+		strategy:  strategy,
 	}, nil
 }
 
@@ -90,8 +98,17 @@ type BidResult struct {
 }
 
 // PlaceBid atomically attempts to place a bid on an item
+// Uses the strategy specified during client initialization (lua or optimistic)
 // Returns BidResult indicating success/failure and relevant bid amounts
 func (c *Client) PlaceBid(ctx context.Context, itemID, userID string, amount float64) (*BidResult, error) {
+	if c.strategy == "optimistic" {
+		return c.placeBidOptimistic(ctx, itemID, userID, amount)
+	}
+	return c.placeBidLua(ctx, itemID, userID, amount)
+}
+
+// placeBidLua uses Lua script for atomic bid operation
+func (c *Client) placeBidLua(ctx context.Context, itemID, userID string, amount float64) (*BidResult, error) {
 	keys := []string{
 		fmt.Sprintf("item:%s:current_bid", itemID),
 		fmt.Sprintf("item:%s:highest_bidder", itemID),
@@ -123,6 +140,84 @@ func (c *Client) PlaceBid(ctx context.Context, itemID, userID string, amount flo
 		PreviousBid: previousBid,
 		CurrentBid:  currentBid,
 	}, nil
+}
+
+// placeBidOptimistic uses optimistic locking (WATCH/MULTI/EXEC) for bid operation
+func (c *Client) placeBidOptimistic(ctx context.Context, itemID, userID string, amount float64) (*BidResult, error) {
+	bidKey := fmt.Sprintf("item:%s:current_bid", itemID)
+	bidderKey := fmt.Sprintf("item:%s:highest_bidder", itemID)
+
+	maxRetries := 10
+	var lastErr error
+
+	for attempt := 0; attempt < maxRetries; attempt++ {
+		err := c.client.Watch(ctx, func(tx *redis.Tx) error {
+			// GET current bid inside WATCH transaction
+			currentBidStr, err := tx.Get(ctx, bidKey).Result()
+			var currentBid float64
+
+			if err == redis.Nil {
+				// No current bid, start from 0
+				currentBid = 0
+			} else if err != nil {
+				return fmt.Errorf("failed to get current bid: %w", err)
+			} else {
+				// Parse current bid
+				if _, err := fmt.Sscanf(currentBidStr, "%f", &currentBid); err != nil {
+					return fmt.Errorf("failed to parse current bid: %w", err)
+				}
+			}
+
+			// Check if new bid is higher
+			if amount <= currentBid {
+				// Bid too low - return special error to distinguish from WATCH conflict
+				return fmt.Errorf("BID_TOO_LOW:%.2f", currentBid)
+			}
+
+			// MULTI/EXEC: atomic update if watched key hasn't changed
+			_, err = tx.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
+				pipe.Set(ctx, bidKey, fmt.Sprintf("%.2f", amount), 0)
+				pipe.Set(ctx, bidderKey, userID, 0)
+				return nil
+			})
+
+			return err
+		}, bidKey)
+
+		// Analyze the result
+		if err == nil {
+			// Success! Transaction completed without conflicts
+			return &BidResult{
+				Success:     true,
+				PreviousBid: 0, // We don't track previous in optimistic mode
+				CurrentBid:  amount,
+			}, nil
+		}
+
+		// Check if it's a business logic rejection (bid too low)
+		if len(err.Error()) > 12 && err.Error()[:12] == "BID_TOO_LOW:" {
+			var currentBid float64
+			fmt.Sscanf(err.Error()[12:], "%f", &currentBid)
+			return &BidResult{
+				Success:     false,
+				PreviousBid: currentBid,
+				CurrentBid:  currentBid,
+			}, nil
+		}
+
+		// Check if it's a WATCH transaction failure (key was modified)
+		if err == redis.TxFailedErr {
+			// Retry due to concurrent modification
+			lastErr = err
+			continue
+		}
+
+		// Other unexpected error
+		return nil, fmt.Errorf("optimistic lock error: %w", err)
+	}
+
+	// Max retries exceeded
+	return nil, fmt.Errorf("max retries exceeded (%d attempts), last error: %w", maxRetries, lastErr)
 }
 
 // GetItemBid retrieves the current highest bid for an item

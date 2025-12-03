@@ -179,6 +179,10 @@ resource "aws_ecs_task_definition" "broadcast_service_simple" {
         {
           name  = "REDIS_DB"
           value = "0"
+        },
+        {
+          name  = "NATS_URL"
+          value = "nats://${aws_lb.nats.dns_name}:4222"
         }
       ]
 

@@ -23,14 +23,14 @@ func main() {
 	cfg := loadConfig()
 
 	// Initialize Redis client
-	fmt.Println("Connecting to Redis...")
-	redis, err := redisClient.NewClient(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB)
+	fmt.Printf("Connecting to Redis (strategy: %s)...\n", cfg.RedisStrategy)
+	redis, err := redisClient.NewClient(cfg.RedisAddr, cfg.RedisPassword, cfg.RedisDB, cfg.RedisStrategy)
 	if err != nil {
 		fmt.Printf("Failed to connect to Redis: %v\n", err)
 		os.Exit(1)
 	}
 	defer redis.Close()
-	fmt.Println("Connected to Redis")
+	fmt.Printf("Connected to Redis with %s strategy\n", cfg.RedisStrategy)
 
 	// Initialize NATS connection
 	fmt.Println("Connecting to NATS...")
@@ -91,6 +91,7 @@ type Config struct {
 	RedisAddr     string
 	RedisPassword string
 	RedisDB       int
+	RedisStrategy string // "lua" or "optimistic"
 	NatsURL       string
 }
 
@@ -101,6 +102,7 @@ func loadConfig() *Config {
 		RedisAddr:     config.GetEnv("REDIS_ADDR", "localhost:6379"),
 		RedisPassword: config.GetEnv("REDIS_PASSWORD", ""),
 		RedisDB:       config.GetEnvInt("REDIS_DB", 0),
+		RedisStrategy: config.GetEnv("REDIS_STRATEGY", "lua"), // Default to Lua
 		NatsURL:       config.GetEnv("NATS_URL", "nats://localhost:4222"),
 	}
 }
