@@ -31,6 +31,7 @@ type BidResponse struct {
 	CurrentBid  float64 `json:"current_bid"`
 	YourBid     float64 `json:"your_bid"`
 	IsHighest   bool    `json:"is_highest"`
+	EventID     string  `json:"event_id,omitempty"` // Only present for successful bids
 }
 
 // BidEvent represents an event that gets published when a bid is accepted

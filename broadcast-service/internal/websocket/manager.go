@@ -44,7 +44,9 @@ func NewManager() *Manager {
 	return &Manager{
 		register:   make(chan *Client),
 		unregister: make(chan *Client),
-		broadcast:  make(chan *BroadcastMessage, 256), // Buffered for high throughput
+		// IMPORTANT: Large buffer to avoid blocking when broadcasting to thousands of clients.
+		// See EXPERIMENT_2_RESULTS.md: small buffer (256) caused freezes at 8K+ connections.
+		broadcast: make(chan *BroadcastMessage, 10000),
 	}
 }
 

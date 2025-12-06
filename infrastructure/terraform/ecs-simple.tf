@@ -2,7 +2,7 @@
 # This works around AWS Academy IAM restrictions
 
 locals {
-  lab_role_arn = "arn:aws:iam::661658682907:role/LabRole"
+  lab_role_arn = "arn:aws:iam::905418455791:role/LabRole"
 }
 
 # ECS Cluster
@@ -93,6 +93,10 @@ resource "aws_ecs_task_definition" "api_gateway_simple" {
         {
           name  = "NATS_URL"
           value = "nats://${aws_lb.nats.dns_name}:4222"
+        },
+        {
+          name  = "REDIS_STRATEGY"
+          value = var.redis_strategy
         }
       ]
 
@@ -252,6 +256,8 @@ resource "aws_ecs_task_definition" "nats_simple" {
       image = "nats:2.10-alpine"
 
       essential = true
+
+      command = ["-js"]
 
       portMappings = [
         {

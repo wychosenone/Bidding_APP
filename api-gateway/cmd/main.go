@@ -43,7 +43,12 @@ func main() {
 	fmt.Println("Connected to NATS")
 
 	// Initialize services
-	biddingService := service.NewBiddingService(redis, natsConn)
+	biddingService, err := service.NewBiddingService(redis, natsConn)
+	if err != nil {
+		fmt.Printf("Failed to initialize bidding service: %v\n", err)
+		os.Exit(1)
+	}
+	fmt.Println("Bidding service initialized with JetStream")
 
 	// Initialize HTTP handlers
 	handler := handlers.NewHandler(biddingService)

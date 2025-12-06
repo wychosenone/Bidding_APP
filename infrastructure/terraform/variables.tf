@@ -92,7 +92,13 @@ variable "api_gateway_memory" {
 variable "api_gateway_desired_count" {
   description = "Desired number of API Gateway tasks"
   type        = number
-  default     = 2
+  default     = 4
+}
+
+variable "redis_strategy" {
+  description = "Redis concurrency strategy: lua or optimistic"
+  type        = string
+  default     = "lua"
 }
 
 variable "broadcast_service_cpu" {

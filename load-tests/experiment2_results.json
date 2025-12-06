@@ -1,0 +1,87 @@
+{
+  "experiment": "Experiment 2: WebSocket Fan-Out Scalability Test",
+  "date": "2025-12-05",
+  "environment": {
+    "test_runner": "AWS EC2 t3.medium (us-west-2)",
+    "instance_id": "i-02f0cd542727905dc",
+    "broadcast_service_alb": "BroadcastService-ALB-1668453844.us-west-2.elb.amazonaws.com",
+    "api_gateway_alb": "ApiGateway-ALB-1765983960.us-west-2.elb.amazonaws.com",
+    "broadcast_service": "ECS Fargate (1 vCPU, 2GB RAM)",
+    "redis_strategy": "lua"
+  },
+  "test_configuration": {
+    "bids_per_test": 10,
+    "interval_between_bids_seconds": 5
+  },
+  "results": {
+    "100_connections": {
+      "target_connections": 100,
+      "successful_connections": 100,
+      "connection_success_rate": "100%",
+      "total_messages_received": 1000,
+      "latency_ms": {
+        "min": 13.80,
+        "p50": 13.80,
+        "p95": 19.99,
+        "p99": 20.98,
+        "max": 21.20
+      },
+      "notes": "Excellent performance with low latency"
+    },
+    "1000_connections": {
+      "target_connections": 1000,
+      "successful_connections": 1000,
+      "connection_success_rate": "100%",
+      "total_messages_received": 10000,
+      "latency_ms": {
+        "min": 5.00,
+        "p50": 75.93,
+        "p95": 93.36,
+        "p99": 105.31,
+        "max": 108.30
+      },
+      "notes": "Good performance, slight latency increase as expected"
+    },
+    "5000_connections": {
+      "target_connections": 5000,
+      "successful_connections": 4449,
+      "connection_success_rate": "88.98%",
+      "total_messages_received": 44490,
+      "latency_ms": {
+        "min": 6.15,
+        "p50": 390.51,
+        "p95": 916.16,
+        "p99": 971.49,
+        "max": 987.57
+      },
+      "notes": "EC2 t3.medium hit connection limit (~4500), higher latency under load"
+    },
+    "10000_connections": {
+      "target_connections": 10000,
+      "successful_connections": 4500,
+      "connection_success_rate": "45%",
+      "total_messages_received": "N/A - Test aborted",
+      "latency_ms": {
+        "note": "Test failed due to EC2 connection limits"
+      },
+      "notes": "EC2 t3.medium cannot handle 10000 outbound connections"
+    }
+  },
+  "analysis": {
+    "scaling_behavior": "Latency increases linearly with connection count up to system limits",
+    "bottleneck": "EC2 t3.medium instance limited to ~4500 concurrent outbound TCP connections",
+    "recommendation": "Use larger EC2 instance or distributed load testing for 10K+ connections"
+  },
+  "comparison_local_vs_ec2": {
+    "100_connections_p99": {
+      "local_mac": "70.83ms",
+      "ec2_same_region": "20.98ms",
+      "improvement": "70% reduction in latency"
+    },
+    "1000_connections_p99": {
+      "local_mac": "359.47ms",
+      "ec2_same_region": "105.31ms",
+      "improvement": "70% reduction in latency"
+    }
+  }
+}

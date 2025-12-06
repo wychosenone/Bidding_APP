@@ -1,0 +1,56 @@
+{
+  "timestamp": "2025-12-05T01:05:47.401984",
+  "strategy": "optimistic",
+  "results": [
+    {
+      "users": 100,
+      "total_requests": 216802,
+      "failures": 0,
+      "avg_latency": 26,
+      "p50": 21,
+      "p95": 42,
+      "p99": 110,
+      "rps": 3623.60
+    },
+    {
+      "users": 500,
+      "total_requests": 536617,
+      "failures": 0,
+      "avg_latency": 63,
+      "p50": 57,
+      "p95": 130,
+      "p99": 190,
+      "rps": 8960.88
+    },
+    {
+      "users": 1000,
+      "total_requests": 523217,
+      "failures": 0,
+      "avg_latency": 131,
+      "p50": 110,
+      "p95": 300,
+      "p99": 430,
+      "rps": 8733.15
+    },
+    {
+      "users": 2000,
+      "total_requests": 513714,
+      "failures": 0,
+      "avg_latency": 222,
+      "p50": 200,
+      "p95": 500,
+      "p99": 1100,
+      "rps": 8555.73
+    },
+    {
+      "users": 10000,
+      "total_requests": 522968,
+      "failures": 0,
+      "avg_latency": 248,
+      "p50": 210,
+      "p95": 630,
+      "p99": 760,
+      "rps": 8662.31
+    }
+  ]
+}

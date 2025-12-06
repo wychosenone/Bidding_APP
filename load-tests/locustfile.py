@@ -155,6 +155,7 @@ class MixedWorkloadUser(FastHttpUser):
     - Multiple items being bid on
     - Various user behaviors
     - Realistic think time
+    - Smart bidding: GET current price first, then bid higher
     """
 
     wait_time = between(1, 3)
@@ -174,17 +175,49 @@ class MixedWorkloadUser(FastHttpUser):
 
     @task(2)
     def place_bid(self):
-        """Place a bid on a random item"""
+        """
+        Place a bid on a random item.
+        First GET current price, then POST a higher bid.
+        This ensures bids can actually succeed.
+        """
         item_id = random.choice(self.watched_items)
-        bid_amount = random.uniform(50.0, 500.0)
+
+        # Step 1: GET current price
+        try:
+            with self.client.get(
+                f"/api/v1/items/{item_id}",
+                catch_response=True,
+                name="/items/[id] [price check]"
+            ) as get_response:
+                if get_response.status_code == 200:
+                    item_data = get_response.json()
+                    current_bid = item_data.get("current_bid", 0)
+                    get_response.success()
+                else:
+                    get_response.failure(f"Failed to get item: {get_response.status_code}")
+                    return
+        except Exception as e:
+            return
+
+        # Step 2: Bid higher than current price
+        increment = random.uniform(0.50, 10.00)
+        bid_amount = current_bid + increment
 
         payload = {
             "user_id": self.user_id,
             "amount": round(bid_amount, 2)
         }
 
-        with self.client.post(f"/api/v1/items/{item_id}/bid", json=payload, name="/items/[id]/bid"):
-            pass
+        with self.client.post(
+            f"/api/v1/items/{item_id}/bid",
+            json=payload,
+            catch_response=True,
+            name="/items/[id]/bid"
+        ) as response:
+            if response.status_code in [200, 201]:
+                response.success()
+            else:
+                response.failure(f"Bid failed: {response.status_code}")
 
 
 # Event handlers for custom metrics

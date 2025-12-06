@@ -10,6 +10,7 @@ import (
 	"github.com/aaronwang/bidding-app/shared/models"
 	"github.com/google/uuid"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 
 	redisClient "github.com/aaronwang/bidding-app/api-gateway/internal/redis"
 )
@@ -18,15 +19,41 @@ import (
 type BiddingService struct {
 	redis      *redisClient.Client
 	nats       *nats.Conn
-	priceCache sync.Map // Local cache for current bid prices (itemID -> float64)
+	js         jetstream.JetStream // JetStream context for persistent messaging
+	priceCache sync.Map            // Local cache for current bid prices (itemID -> float64)
 }
 
 // NewBiddingService creates a new bidding service
-func NewBiddingService(redis *redisClient.Client, natsConn *nats.Conn) *BiddingService {
+func NewBiddingService(redis *redisClient.Client, natsConn *nats.Conn) (*BiddingService, error) {
+	// Create JetStream context
+	js, err := jetstream.New(natsConn)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create JetStream context: %w", err)
+	}
+
+	// Ensure the stream exists (create if not)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	_, err = js.CreateOrUpdateStream(ctx, jetstream.StreamConfig{
+		Name:        "BID_EVENTS",
+		Description: "Stream for bid events archival",
+		Subjects:    []string{"bid.events.*"},
+		Storage:     jetstream.FileStorage,  // Persistent storage
+		Retention:   jetstream.WorkQueuePolicy, // Each message consumed once
+		MaxAge:      24 * time.Hour,          // Keep messages for 24 hours
+		Replicas:    1,                        // Single replica for dev
+	})
+	if err != nil {
+		return nil, fmt.Errorf("failed to create/update stream: %w", err)
+	}
+	fmt.Println("[JETSTREAM] Stream 'BID_EVENTS' ready")
+
 	return &BiddingService{
 		redis: redis,
 		nats:  natsConn,
-	}
+		js:    js,
+	}, nil
 }
 
 // PlaceBid handles the complete bid placement workflow:
@@ -146,6 +173,7 @@ func (s *BiddingService) PlaceBid(ctx context.Context, itemID string, req *model
 		CurrentBid: req.Amount,
 		YourBid:    req.Amount,
 		IsHighest:  true,
+		EventID:    bidEvent.EventID,
 	}, nil
 }
 
@@ -166,21 +194,28 @@ func (s *BiddingService) GetItemBid(ctx context.Context, itemID string) (*models
 	}, nil
 }
 
-// publishToArchivalQueue publishes bid event to NATS for archival persistence
-// This is fire-and-forget to keep the write path fast
+// publishToArchivalQueue publishes bid event to NATS JetStream for archival persistence
+// Uses JetStream for guaranteed delivery (at-least-once semantics)
 func (s *BiddingService) publishToArchivalQueue(event *models.BidEvent) error {
 	data, err := json.Marshal(event)
 	if err != nil {
 		return fmt.Errorf("failed to marshal event: %w", err)
 	}
 
-	// Publish to NATS subject
+	// Publish to JetStream subject
 	// Subject naming: "bid.events.{itemID}" allows for future routing/filtering
 	subject := fmt.Sprintf("bid.events.%s", event.ItemID)
 
-	if err := s.nats.Publish(subject, data); err != nil {
-		return fmt.Errorf("failed to publish to NATS: %w", err)
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+
+	// JetStream Publish waits for acknowledgment from server
+	// This ensures the message is persisted before returning
+	ack, err := s.js.Publish(ctx, subject, data)
+	if err != nil {
+		return fmt.Errorf("failed to publish to JetStream: %w", err)
 	}
 
+	fmt.Printf("[JETSTREAM] Published to %s, seq=%d\n", subject, ack.Sequence)
 	return nil
 }

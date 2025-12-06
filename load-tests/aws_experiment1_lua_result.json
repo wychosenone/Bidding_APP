@@ -1,0 +1,55 @@
+{
+  "timestamp": "2025-12-04T22:03:28.159549",
+  "results": [
+    {
+      "users": 100,
+      "total_requests": 233969,
+      "failures": 0,
+      "avg_latency": 22.264417250490876,
+      "p50": 13.0,
+      "p95": 0.0,
+      "p99": 22.0,
+      "rps": 30.0
+    },
+    {
+      "users": 500,
+      "total_requests": 730781,
+      "failures": 0,
+      "avg_latency": 38.676207490189135,
+      "p50": 13.0,
+      "p95": 0.0,
+      "p99": 32.0,
+      "rps": 110.0
+    },
+    {
+      "users": 1000,
+      "total_requests": 867946,
+      "failures": 0,
+      "avg_latency": 62.03337375637318,
+      "p50": 13.0,
+      "p95": 0.0,
+      "p99": 70.0,
+      "rps": 110.0
+    },
+    {
+      "users": 2000,
+      "total_requests": 821200,
+      "failures": 0,
+      "avg_latency": 108.43475934282722,
+      "p50": 13.0,
+      "p95": 0.0,
+      "p99": 120.0,
+      "rps": 220.0
+    },
+    {
+      "users": 10000,
+      "total_requests": 839687,
+      "failures": 0,
+      "avg_latency": 194.0,
+      "p50": 160,
+      "p95": 410,
+      "p99": 560,
+      "rps": 12846.26
+    }
+  ]
+}

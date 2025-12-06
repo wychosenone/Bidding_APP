@@ -9,54 +9,91 @@ import (
 	"github.com/aaronwang/bidding-app/archival-worker/internal/database"
 	"github.com/aaronwang/bidding-app/shared/models"
 	"github.com/nats-io/nats.go"
+	"github.com/nats-io/nats.go/jetstream"
 )
 
-// NATSConsumer consumes bid events from NATS and persists to database
+// NATSConsumer consumes bid events from NATS JetStream and persists to database
 type NATSConsumer struct {
-	conn *nats.Conn
-	sub  *nats.Subscription
-	db   *database.PostgresClient
+	conn     *nats.Conn
+	js       jetstream.JetStream
+	consumer jetstream.Consumer
+	db       *database.PostgresClient
 }
 
-// NewNATSConsumer creates a new NATS consumer
+// NewNATSConsumer creates a new NATS JetStream consumer
 func NewNATSConsumer(natsURL string, db *database.PostgresClient) (*NATSConsumer, error) {
 	conn, err := nats.Connect(natsURL)
 	if err != nil {
 		return nil, fmt.Errorf("failed to connect to NATS: %w", err)
 	}
 
+	// Create JetStream context
+	js, err := jetstream.New(conn)
+	if err != nil {
+		conn.Close()
+		return nil, fmt.Errorf("failed to create JetStream context: %w", err)
+	}
+
 	return &NATSConsumer{
 		conn: conn,
+		js:   js,
 		db:   db,
 	}, nil
 }
 
-// Start begins consuming messages from NATS
-// Subject pattern: "bid.events.*" subscribes to all item bid events
+// Start begins consuming messages from NATS JetStream
 func (c *NATSConsumer) Start(ctx context.Context) error {
-	// Subscribe to all bid events
-	// Using wildcard "*" to match all items: bid.events.item1, bid.events.item2, etc.
-	sub, err := c.conn.Subscribe("bid.events.*", func(msg *nats.Msg) {
-		c.handleMessage(ctx, msg)
+	// Get or create the consumer for the BID_EVENTS stream
+	consumer, err := c.js.CreateOrUpdateConsumer(ctx, "BID_EVENTS", jetstream.ConsumerConfig{
+		Name:          "archival-worker",
+		Durable:       "archival-worker", // Durable consumer survives restarts
+		FilterSubject: "bid.events.*",
+		AckPolicy:     jetstream.AckExplicitPolicy, // Manual acknowledgment
+		AckWait:       30 * time.Second,            // Redeliver if not acked in 30s
+		MaxDeliver:    5,                           // Max 5 delivery attempts
+		DeliverPolicy: jetstream.DeliverAllPolicy,  // Start from beginning
 	})
 	if err != nil {
-		return fmt.Errorf("failed to subscribe: %w", err)
+		return fmt.Errorf("failed to create consumer: %w", err)
+	}
+	c.consumer = consumer
+	fmt.Println("[JETSTREAM] Consumer 'archival-worker' ready on stream 'BID_EVENTS'")
+
+	// Consume messages
+	msgs, err := consumer.Messages()
+	if err != nil {
+		return fmt.Errorf("failed to get message iterator: %w", err)
 	}
 
-	c.sub = sub
-	fmt.Println("Subscribed to NATS subject: bid.events.*")
+	fmt.Println("[JETSTREAM] Starting message consumption...")
 
-	// Keep consumer running until context is cancelled
-	<-ctx.Done()
-	return nil
+	for {
+		select {
+		case <-ctx.Done():
+			msgs.Stop()
+			return nil
+		default:
+			msg, err := msgs.Next()
+			if err != nil {
+				if ctx.Err() != nil {
+					return nil // Context cancelled, clean shutdown
+				}
+				fmt.Printf("[JETSTREAM] Error getting next message: %v\n", err)
+				continue
+			}
+			c.handleMessage(ctx, msg)
+		}
+	}
 }
 
-// handleMessage processes a single bid event message
-func (c *NATSConsumer) handleMessage(ctx context.Context, msg *nats.Msg) {
+// handleMessage processes a single bid event message from JetStream
+func (c *NATSConsumer) handleMessage(ctx context.Context, msg jetstream.Msg) {
 	// Parse the event
 	var event models.BidEvent
-	if err := json.Unmarshal(msg.Data, &event); err != nil {
-		fmt.Printf("Failed to unmarshal event: %v\n", err)
+	if err := json.Unmarshal(msg.Data(), &event); err != nil {
+		fmt.Printf("[JETSTREAM] Failed to unmarshal event: %v\n", err)
+		// Nak with delay to retry later
+		msg.NakWithDelay(5 * time.Second)
 		return
 	}
 
@@ -65,39 +102,49 @@ func (c *NATSConsumer) handleMessage(ctx context.Context, msg *nats.Msg) {
 	defer cancel()
 
 	// Persist to database
-	if err := c.persistBidEvent(dbCtx, &event); err != nil {
-		fmt.Printf("Failed to persist bid event %s: %v\n", event.EventID, err)
-		// In production, you'd want retry logic or dead-letter queue here
+	updated, err := c.persistBidEvent(dbCtx, &event)
+	if err != nil {
+		fmt.Printf("[JETSTREAM] Failed to persist bid event %s: %v\n", event.EventID, err)
+		// Nak with delay to retry later
+		msg.NakWithDelay(5 * time.Second)
 		return
 	}
 
-	fmt.Printf("Persisted bid event %s (item: %s, user: %s, amount: $%.2f)\n",
-		event.EventID, event.ItemID, event.UserID, event.Amount)
+	// Get message metadata for logging
+	meta, _ := msg.Metadata()
+	if updated {
+		fmt.Printf("[JETSTREAM] Persisted bid event %s (item: %s, user: %s, amount: $%.2f, seq: %d) - UPDATED current_bid\n",
+			event.EventID, event.ItemID, event.UserID, event.Amount, meta.Sequence.Stream)
+	} else {
+		fmt.Printf("[JETSTREAM] Persisted bid event %s (item: %s, user: %s, amount: $%.2f, seq: %d) - SKIPPED (higher bid exists)\n",
+			event.EventID, event.ItemID, event.UserID, event.Amount, meta.Sequence.Stream)
+	}
 
-	// Acknowledge message
-	msg.Ack()
+	// Acknowledge successful processing
+	if err := msg.Ack(); err != nil {
+		fmt.Printf("[JETSTREAM] Failed to ack message: %v\n", err)
+	}
 }
 
 // persistBidEvent writes the bid event to PostgreSQL
-func (c *NATSConsumer) persistBidEvent(ctx context.Context, event *models.BidEvent) error {
-	// Insert bid record
+// Returns (updated bool, error) - updated indicates if item's current_bid was changed
+func (c *NATSConsumer) persistBidEvent(ctx context.Context, event *models.BidEvent) (bool, error) {
+	// Insert bid record (always insert - this is the audit trail)
 	if err := c.db.InsertBid(ctx, event); err != nil {
-		return fmt.Errorf("failed to insert bid: %w", err)
+		return false, fmt.Errorf("failed to insert bid: %w", err)
 	}
 
-	// Update item's current bid
-	if err := c.db.UpdateItemCurrentBid(ctx, event.ItemID, event.Amount, event.UserID); err != nil {
-		return fmt.Errorf("failed to update item: %w", err)
+	// Update item's current bid (conditional - only if this bid is higher)
+	updated, err := c.db.UpdateItemCurrentBid(ctx, event.ItemID, event.Amount, event.UserID)
+	if err != nil {
+		return false, fmt.Errorf("failed to update item: %w", err)
 	}
 
-	return nil
+	return updated, nil
 }
 
 // Close closes the NATS connection
 func (c *NATSConsumer) Close() error {
-	if c.sub != nil {
-		c.sub.Unsubscribe()
-	}
 	c.conn.Close()
 	return nil
 }
