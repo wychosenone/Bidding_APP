@@ -1,6 +1,6 @@
 module github.com/aaronwang/bidding-app/api-gateway
 
-go 1.25.1
+go 1.23.0
 
 require (
 	github.com/aaronwang/bidding-app/shared v0.0.0-00010101000000-000000000000

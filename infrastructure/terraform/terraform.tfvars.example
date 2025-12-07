@@ -1,0 +1,46 @@
+# Example Terraform Variables
+# Copy this file to terraform.tfvars and customize for your deployment
+
+aws_region  = "us-east-1"
+environment = "dev"
+project_name = "bidding-system"
+
+# VPC Configuration
+vpc_cidr = "10.0.0.0/16"
+availability_zones_count = 2
+
+# ElastiCache (Redis) Configuration
+redis_node_type = "cache.t3.micro"  # Use cache.r6g.large for production
+redis_num_cache_nodes = 1           # Use 2+ with replication for production
+
+# RDS (PostgreSQL) Configuration
+db_instance_class = "db.t3.micro"   # Use db.r6g.large for production
+db_name = "bidding"
+db_username = "bidding"
+db_password = "CHANGE_ME_IN_PRODUCTION_123!"  # IMPORTANT: Change this!
+db_allocated_storage = 20
+
+# ECS Configuration - API Gateway
+api_gateway_cpu = 512              # 0.5 vCPU
+api_gateway_memory = 1024          # 1 GB
+api_gateway_desired_count = 2      # Number of tasks
+
+# ECS Configuration - Broadcast Service
+broadcast_service_cpu = 512
+broadcast_service_memory = 1024
+broadcast_service_desired_count = 2
+
+# ECS Configuration - Archival Worker
+archival_worker_cpu = 256
+archival_worker_memory = 512
+archival_worker_desired_count = 1
+
+# ECS Configuration - NATS
+nats_cpu = 256
+nats_memory = 512
+
+# Container Images (leave empty for first deployment, will use ECR URLs)
+# After first deployment and image push, uncomment and set these:
+# api_gateway_image = "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/bidding-system/api-gateway:latest"
+# broadcast_service_image = "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/bidding-system/broadcast-service:latest"
+# archival_worker_image = "ACCOUNT_ID.dkr.ecr.us-east-1.amazonaws.com/bidding-system/archival-worker:latest"

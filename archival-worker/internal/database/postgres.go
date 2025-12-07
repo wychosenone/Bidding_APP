@@ -105,32 +105,48 @@ func (c *PostgresClient) InsertBid(ctx context.Context, event *models.BidEvent) 
 	return nil
 }
 
-// UpdateItemCurrentBid updates the current bid for an item
-func (c *PostgresClient) UpdateItemCurrentBid(ctx context.Context, itemID string, amount float64, bidderID string) error {
+// UpdateItemCurrentBid updates the current bid for an item only if the new bid is higher
+// Returns (updated bool, error) - updated is true if the bid was actually applied
+func (c *PostgresClient) UpdateItemCurrentBid(ctx context.Context, itemID string, amount float64, bidderID string) (bool, error) {
+	// Conditional update: only update if new amount is higher than current
+	// This prevents race conditions when multiple workers process bids concurrently
 	query := `
 		UPDATE items
 		SET current_bid = $1,
 		    highest_bidder_id = $2,
 		    updated_at = CURRENT_TIMESTAMP
-		WHERE id = $3
+		WHERE id = $3 AND (current_bid IS NULL OR current_bid < $1)
 	`
 
 	result, err := c.db.ExecContext(ctx, query, amount, bidderID, itemID)
 	if err != nil {
-		return fmt.Errorf("failed to update item: %w", err)
+		return false, fmt.Errorf("failed to update item: %w", err)
 	}
 
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("failed to get rows affected: %w", err)
+		return false, fmt.Errorf("failed to get rows affected: %w", err)
 	}
 
 	if rows == 0 {
-		// Item doesn't exist, create it (in a real system, items would be pre-created)
-		return c.createItemIfNotExists(ctx, itemID)
+		// Either item doesn't exist, or bid is not higher than current
+		// Try to create item if it doesn't exist
+		err := c.createItemIfNotExists(ctx, itemID)
+		if err != nil {
+			return false, err
+		}
+
+		// Try update again after creating item
+		result, err = c.db.ExecContext(ctx, query, amount, bidderID, itemID)
+		if err != nil {
+			return false, fmt.Errorf("failed to update item after create: %w", err)
+		}
+
+		rows, _ = result.RowsAffected()
+		return rows > 0, nil
 	}
 
-	return nil
+	return true, nil
 }
 
 // createItemIfNotExists creates a placeholder item if it doesn't exist

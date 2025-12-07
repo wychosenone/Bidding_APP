@@ -1,0 +1,262 @@
+[0m[1maws_elasticache_parameter_group.redis: Refreshing state... [id=bidding-system-redis-params][0m
+[0m[1maws_ecr_repository.api_gateway: Refreshing state... [id=bidding-system/api-gateway][0m
+[0m[1maws_ecr_repository.archival_worker: Refreshing state... [id=bidding-system/archival-worker][0m
+[0m[1maws_cloudwatch_log_group.api_gateway: Refreshing state... [id=/ecs/bidding-system/api-gateway][0m
+[0m[1maws_vpc.main: Refreshing state... [id=vpc-0a7410acc5126e9dd][0m
+[0m[1mdata.aws_availability_zones.available: Reading...[0m[0m
+[0m[1maws_cloudwatch_log_group.nats: Refreshing state... [id=/ecs/bidding-system/nats][0m
+[0m[1maws_ecr_repository.broadcast_service: Refreshing state... [id=bidding-system/broadcast-service][0m
+[0m[1maws_ecs_cluster.main: Refreshing state... [id=arn:aws:ecs:us-west-2:661658682907:cluster/bidding-system-cluster][0m
+[0m[1maws_db_parameter_group.postgres: Refreshing state... [id=bidding-system-postgres-params][0m
+[0m[1mdata.aws_availability_zones.available: Read complete after 0s [id=us-west-2][0m
+[0m[1maws_cloudwatch_log_group.archival_worker: Refreshing state... [id=/ecs/bidding-system/archival-worker][0m
+[0m[1maws_cloudwatch_log_group.broadcast_service: Refreshing state... [id=/ecs/bidding-system/broadcast-service][0m
+[0m[1maws_ecs_task_definition.nats_simple: Refreshing state... [id=bidding-system-nats][0m
+[0m[1maws_ecr_lifecycle_policy.cleanup["api_gateway"]: Refreshing state... [id=bidding-system/api-gateway][0m
+[0m[1maws_ecr_lifecycle_policy.cleanup["archival_worker"]: Refreshing state... [id=bidding-system/archival-worker][0m
+[0m[1maws_ecr_lifecycle_policy.cleanup["broadcast_service"]: Refreshing state... [id=bidding-system/broadcast-service][0m
+[0m[1maws_internet_gateway.main: Refreshing state... [id=igw-0d77147f920cc0ede][0m
+[0m[1maws_subnet.public[0]: Refreshing state... [id=subnet-03647c0dcde4384bb][0m
+[0m[1maws_subnet.private[1]: Refreshing state... [id=subnet-0a16fc6361f2530bb][0m
+[0m[1maws_subnet.public[1]: Refreshing state... [id=subnet-04e35a1db58b71912][0m
+[0m[1maws_subnet.private[0]: Refreshing state... [id=subnet-0e52828f2acc82090][0m
+[0m[1maws_security_group.alb: Refreshing state... [id=sg-040b856ed6ecb5261][0m
+[0m[1maws_lb_target_group.broadcast_service: Refreshing state... [id=arn:aws:elasticloadbalancing:us-west-2:661658682907:targetgroup/bidding-system-ws-tg/a465b64fafa0f1a8][0m
+[0m[1maws_lb_target_group.nats: Refreshing state... [id=arn:aws:elasticloadbalancing:us-west-2:661658682907:targetgroup/bidding-system-nats-tg/9c3c5087dc5c98b5][0m
+[0m[1maws_lb_target_group.api_gateway: Refreshing state... [id=arn:aws:elasticloadbalancing:us-west-2:661658682907:targetgroup/bidding-system-api-tg/9097d40cd976d3c7][0m
+[0m[1maws_route_table.public: Refreshing state... [id=rtb-05a05753e3c9af47f][0m
+[0m[1maws_eip.nat[1]: Refreshing state... [id=eipalloc-0343af8a43e0ecb71][0m
+[0m[1maws_eip.nat[0]: Refreshing state... [id=eipalloc-080285ee6e07d579e][0m
+[0m[1maws_security_group.ecs_tasks: Refreshing state... [id=sg-0056b1a20c32e9035][0m
+[0m[1maws_route_table_association.public[0]: Refreshing state... [id=rtbassoc-061d3a2553ef62a32][0m
+[0m[1maws_route_table_association.public[1]: Refreshing state... [id=rtbassoc-098128e98a3aa041a][0m
+[0m[1maws_db_subnet_group.postgres: Refreshing state... [id=bidding-system-postgres-subnet-group][0m
+[0m[1maws_lb.main: Refreshing state... [id=arn:aws:elasticloadbalancing:us-west-2:661658682907:loadbalancer/app/bidding-system-alb/ffa97848669f61d0][0m
+[0m[1maws_elasticache_subnet_group.redis: Refreshing state... [id=bidding-system-redis-subnet-group][0m
+[0m[1maws_lb.nats: Refreshing state... [id=arn:aws:elasticloadbalancing:us-west-2:661658682907:loadbalancer/net/bidding-system-nats-nlb/595ea0e8976860af][0m
+[0m[1maws_security_group.redis: Refreshing state... [id=sg-0c144f5fce78d238e][0m
+[0m[1maws_security_group.rds: Refreshing state... [id=sg-02fa54e452da9fbfb][0m
+[0m[1maws_nat_gateway.main[1]: Refreshing state... [id=nat-06cdcb3c91bc8f2cd][0m
+[0m[1maws_nat_gateway.main[0]: Refreshing state... [id=nat-02be9bab961014d47][0m
+[0m[1maws_route_table.private[0]: Refreshing state... [id=rtb-071428e1f90fbd74a][0m
+[0m[1maws_route_table.private[1]: Refreshing state... [id=rtb-07cf9bdcbf1fd033d][0m
+[0m[1maws_db_instance.postgres: Refreshing state... [id=db-BNDXBOWRDHWQJDKNNIYJSFDKAQ][0m
+[0m[1maws_lb_listener.http: Refreshing state... [id=arn:aws:elasticloadbalancing:us-west-2:661658682907:listener/app/bidding-system-alb/ffa97848669f61d0/1637e54c034a76e5][0m
+[0m[1maws_lb_listener.nats: Refreshing state... [id=arn:aws:elasticloadbalancing:us-west-2:661658682907:listener/net/bidding-system-nats-nlb/595ea0e8976860af/e171911419c2b99d][0m
+[0m[1maws_route_table_association.private[1]: Refreshing state... [id=rtbassoc-08cb523699d51a732][0m
+[0m[1maws_route_table_association.private[0]: Refreshing state... [id=rtbassoc-08b8d56b3628a1cdf][0m
+[0m[1maws_ecs_task_definition.archival_worker_simple: Refreshing state... [id=bidding-system-archival-worker][0m
+[0m[1maws_elasticache_cluster.redis: Refreshing state... [id=bidding-system-redis][0m
+[0m[1maws_lb_listener_rule.api_gateway: Refreshing state... [id=arn:aws:elasticloadbalancing:us-west-2:661658682907:listener-rule/app/bidding-system-alb/ffa97848669f61d0/1637e54c034a76e5/6beb0b66c0b5bbd8][0m
+[0m[1maws_lb_listener_rule.broadcast_service: Refreshing state... [id=arn:aws:elasticloadbalancing:us-west-2:661658682907:listener-rule/app/bidding-system-alb/ffa97848669f61d0/1637e54c034a76e5/094df9c9ada0a0e1][0m
+[0m[1maws_ecs_service.nats_simple: Refreshing state... [id=arn:aws:ecs:us-west-2:661658682907:service/bidding-system-cluster/bidding-system-nats][0m
+[0m[1maws_ecs_task_definition.api_gateway_simple: Refreshing state... [id=bidding-system-api-gateway][0m
+[0m[1maws_ecs_task_definition.broadcast_service_simple: Refreshing state... [id=bidding-system-broadcast-service][0m
+[0m[1maws_ecs_service.archival_worker_simple: Refreshing state... [id=arn:aws:ecs:us-west-2:661658682907:service/bidding-system-cluster/bidding-system-archival-worker][0m
+[0m[1maws_ecs_service.broadcast_service_simple: Refreshing state... [id=arn:aws:ecs:us-west-2:661658682907:service/bidding-system-cluster/bidding-system-broadcast-service][0m
+[0m[1maws_ecs_service.api_gateway_simple: Refreshing state... [id=arn:aws:ecs:us-west-2:661658682907:service/bidding-system-cluster/bidding-system-api-gateway][0m
+
+Terraform used the selected providers to generate the following execution
+plan. Resource actions are indicated with the following symbols:
+  [33m~[0m update in-place[0m
+[31m-[0m/[32m+[0m destroy and then create replacement[0m
+
+Terraform will perform the following actions:
+
+[1m  # aws_db_parameter_group.postgres[0m will be updated in-place
+[0m  [33m~[0m[0m resource "aws_db_parameter_group" "postgres" {
+        id           = "bidding-system-postgres-params"
+        name         = "bidding-system-postgres-params"
+        tags         = {
+            "Name" = "bidding-system-postgres-params"
+        }
+        [90m# (6 unchanged attributes hidden)[0m[0m
+
+      [31m-[0m[0m parameter {
+          [31m-[0m[0m apply_method = "pending-reboot" [90m-> null[0m[0m
+          [31m-[0m[0m name         = "checkpoint_completion_target" [90m-> null[0m[0m
+          [31m-[0m[0m value        = "0.9" [90m-> null[0m[0m
+        }
+      [32m+[0m[0m parameter {
+          [32m+[0m[0m apply_method = "immediate"
+          [32m+[0m[0m name         = "checkpoint_completion_target"
+          [32m+[0m[0m value        = "0.9"
+        }
+
+        [90m# (4 unchanged blocks hidden)[0m[0m
+    }
+
+[1m  # aws_ecs_service.api_gateway_simple[0m will be updated in-place
+[0m  [33m~[0m[0m resource "aws_ecs_service" "api_gateway_simple" {
+        id                                 = "arn:aws:ecs:us-west-2:661658682907:service/bidding-system-cluster/bidding-system-api-gateway"
+        name                               = "bidding-system-api-gateway"
+        tags                               = {
+            "Name" = "bidding-system-api-gateway-service-simple"
+        }
+      [33m~[0m[0m task_definition                    = "arn:aws:ecs:us-west-2:661658682907:task-definition/bidding-system-api-gateway:1" -> (known after apply)
+        [90m# (16 unchanged attributes hidden)[0m[0m
+
+        [90m# (4 unchanged blocks hidden)[0m[0m
+    }
+
+[1m  # aws_ecs_service.broadcast_service_simple[0m will be updated in-place
+[0m  [33m~[0m[0m resource "aws_ecs_service" "broadcast_service_simple" {
+        id                                 = "arn:aws:ecs:us-west-2:661658682907:service/bidding-system-cluster/bidding-system-broadcast-service"
+        name                               = "bidding-system-broadcast-service"
+        tags                               = {
+            "Name" = "bidding-system-broadcast-service-service-simple"
+        }
+      [33m~[0m[0m task_definition                    = "arn:aws:ecs:us-west-2:661658682907:task-definition/bidding-system-broadcast-service:1" -> (known after apply)
+        [90m# (16 unchanged attributes hidden)[0m[0m
+
+        [90m# (4 unchanged blocks hidden)[0m[0m
+    }
+
+[1m  # aws_ecs_task_definition.api_gateway_simple[0m must be [1m[31mreplaced[0m
+[0m[31m-[0m/[32m+[0m[0m resource "aws_ecs_task_definition" "api_gateway_simple" {
+      [33m~[0m[0m arn                      = "arn:aws:ecs:us-west-2:661658682907:task-definition/bidding-system-api-gateway:1" -> (known after apply)
+      [33m~[0m[0m arn_without_revision     = "arn:aws:ecs:us-west-2:661658682907:task-definition/bidding-system-api-gateway" -> (known after apply)
+      [33m~[0m[0m container_definitions    = jsonencode(
+          [33m~[0m[0m [
+              [33m~[0m[0m {
+                  [31m-[0m[0m mountPoints      = []
+                    name             = "api-gateway"
+                  [33m~[0m[0m portMappings     = [
+                      [33m~[0m[0m {
+                          [31m-[0m[0m hostPort      = 8080
+                            [90m# (2 unchanged attributes hidden)[0m[0m
+                        },
+                    ]
+                  [31m-[0m[0m systemControls   = []
+                  [31m-[0m[0m volumesFrom      = []
+                    [90m# (4 unchanged attributes hidden)[0m[0m
+                },
+            ]
+        )
+      [33m~[0m[0m cpu                      = "512" [33m->[0m[0m "2048" [31m# forces replacement[0m[0m
+      [33m~[0m[0m enable_fault_injection   = false -> (known after apply)
+      [33m~[0m[0m id                       = "bidding-system-api-gateway" -> (known after apply)
+      [33m~[0m[0m memory                   = "1024" [33m->[0m[0m "4096" [31m# forces replacement[0m[0m
+      [33m~[0m[0m revision                 = 1 -> (known after apply)
+        tags                     = {
+            "Name" = "bidding-system-api-gateway-task-simple"
+        }
+        [90m# (10 unchanged attributes hidden)[0m[0m
+    }
+
+[1m  # aws_ecs_task_definition.broadcast_service_simple[0m must be [1m[31mreplaced[0m
+[0m[31m-[0m/[32m+[0m[0m resource "aws_ecs_task_definition" "broadcast_service_simple" {
+      [33m~[0m[0m arn                      = "arn:aws:ecs:us-west-2:661658682907:task-definition/bidding-system-broadcast-service:1" -> (known after apply)
+      [33m~[0m[0m arn_without_revision     = "arn:aws:ecs:us-west-2:661658682907:task-definition/bidding-system-broadcast-service" -> (known after apply)
+      [33m~[0m[0m container_definitions    = jsonencode(
+          [33m~[0m[0m [
+              [33m~[0m[0m {
+                  [31m-[0m[0m mountPoints      = []
+                    name             = "broadcast-service"
+                  [33m~[0m[0m portMappings     = [
+                      [33m~[0m[0m {
+                          [31m-[0m[0m hostPort      = 8081
+                            [90m# (2 unchanged attributes hidden)[0m[0m
+                        },
+                    ]
+                  [31m-[0m[0m systemControls   = []
+                  [31m-[0m[0m volumesFrom      = []
+                    [90m# (4 unchanged attributes hidden)[0m[0m
+                },
+            ]
+        )
+      [33m~[0m[0m cpu                      = "512" [33m->[0m[0m "2048" [31m# forces replacement[0m[0m
+      [33m~[0m[0m enable_fault_injection   = false -> (known after apply)
+      [33m~[0m[0m id                       = "bidding-system-broadcast-service" -> (known after apply)
+      [33m~[0m[0m memory                   = "1024" [33m->[0m[0m "4096" [31m# forces replacement[0m[0m
+      [33m~[0m[0m revision                 = 1 -> (known after apply)
+        tags                     = {
+            "Name" = "bidding-system-broadcast-service-task-simple"
+        }
+        [90m# (10 unchanged attributes hidden)[0m[0m
+    }
+
+[1m  # aws_elasticache_cluster.redis[0m will be updated in-place
+[0m  [33m~[0m[0m resource "aws_elasticache_cluster" "redis" {
+        id                         = "bidding-system-redis"
+      [33m~[0m[0m node_type                  = "cache.t3.micro" [33m->[0m[0m "cache.m6g.large"
+        tags                       = {
+            "Name" = "bidding-system-redis"
+        }
+        [90m# (23 unchanged attributes hidden)[0m[0m
+    }
+
+[1mPlan:[0m 2 to add, 4 to change, 2 to destroy.
+[0m[0m[1maws_ecs_task_definition.api_gateway_simple: Destroying... [id=bidding-system-api-gateway][0m[0m
+[0m[1maws_ecs_task_definition.broadcast_service_simple: Destroying... [id=bidding-system-broadcast-service][0m[0m
+[0m[1maws_db_parameter_group.postgres: Modifying... [id=bidding-system-postgres-params][0m[0m
+[0m[1maws_ecs_task_definition.api_gateway_simple: Destruction complete after 1s[0m
+[0m[1maws_ecs_task_definition.broadcast_service_simple: Destruction complete after 1s[0m
+[0m[1maws_elasticache_cluster.redis: Modifying... [id=bidding-system-redis][0m[0m
+[0m[1maws_db_parameter_group.postgres: Modifications complete after 1s [id=bidding-system-postgres-params][0m
+[0m[1maws_elasticache_cluster.redis: Still modifying... [id=bidding-system-redis, 00m10s elapsed][0m[0m
+[0m[1maws_elasticache_cluster.redis: Still modifying... [id=bidding-system-redis, 00m20s elapsed][0m[0m
+[0m[1maws_elasticache_cluster.redis: Still modifying... [id=bidding-system-redis, 00m30s elapsed][0m[0m
+[0m[1maws_elasticache_cluster.redis: Modifications complete after 30s [id=bidding-system-redis][0m
+[0m[1maws_ecs_task_definition.broadcast_service_simple: Creating...[0m[0m
+[0m[1maws_ecs_task_definition.api_gateway_simple: Creating...[0m[0m
+[0m[1maws_ecs_task_definition.broadcast_service_simple: Creation complete after 1s [id=bidding-system-broadcast-service][0m
+[0m[1maws_ecs_task_definition.api_gateway_simple: Creation complete after 1s [id=bidding-system-api-gateway][0m
+[0m[1maws_ecs_service.broadcast_service_simple: Modifying... [id=arn:aws:ecs:us-west-2:661658682907:service/bidding-system-cluster/bidding-system-broadcast-service][0m[0m
+[0m[1maws_ecs_service.api_gateway_simple: Modifying... [id=arn:aws:ecs:us-west-2:661658682907:service/bidding-system-cluster/bidding-system-api-gateway][0m[0m
+[0m[1maws_ecs_service.api_gateway_simple: Modifications complete after 0s [id=arn:aws:ecs:us-west-2:661658682907:service/bidding-system-cluster/bidding-system-api-gateway][0m
+[0m[1maws_ecs_service.broadcast_service_simple: Modifications complete after 0s [id=arn:aws:ecs:us-west-2:661658682907:service/bidding-system-cluster/bidding-system-broadcast-service][0m
+[0m[1m[32m
+Apply complete! Resources: 2 added, 4 changed, 2 destroyed.
+[0m[0m[1m[32m
+Outputs:
+
+[0malb_dns_name = "bidding-system-alb-137918056.us-west-2.elb.amazonaws.com"
+alb_url = "http://bidding-system-alb-137918056.us-west-2.elb.amazonaws.com"
+connection_info = {
+  "api_gateway_url" = "http://bidding-system-alb-137918056.us-west-2.elb.amazonaws.com/api/v1"
+  "health_check_url" = "http://bidding-system-alb-137918056.us-west-2.elb.amazonaws.com/health"
+  "websocket_url" = "ws://bidding-system-alb-137918056.us-west-2.elb.amazonaws.com/ws"
+}
+deployment_commands = <<EOT
+# 1. Build and push Docker images to ECR
+aws ecr get-login-password --region us-west-2 | docker login --username AWS --password-stdin 661658682907.dkr.ecr.us-west-2.amazonaws.com/bidding-system/api-gateway
+
+docker build -t 661658682907.dkr.ecr.us-west-2.amazonaws.com/bidding-system/api-gateway:latest -f infrastructure/docker/Dockerfile.api-gateway .
+docker push 661658682907.dkr.ecr.us-west-2.amazonaws.com/bidding-system/api-gateway:latest
+
+docker build -t 661658682907.dkr.ecr.us-west-2.amazonaws.com/bidding-system/broadcast-service:latest -f infrastructure/docker/Dockerfile.broadcast-service .
+docker push 661658682907.dkr.ecr.us-west-2.amazonaws.com/bidding-system/broadcast-service:latest
+
+docker build -t 661658682907.dkr.ecr.us-west-2.amazonaws.com/bidding-system/archival-worker:latest -f infrastructure/docker/Dockerfile.archival-worker .
+docker push 661658682907.dkr.ecr.us-west-2.amazonaws.com/bidding-system/archival-worker:latest
+
+# 2. Update ECS services to use new images
+aws ecs update-service --cluster bidding-system-cluster --service bidding-system-api-gateway --force-new-deployment --region us-west-2
+aws ecs update-service --cluster bidding-system-cluster --service bidding-system-broadcast-service --force-new-deployment --region us-west-2
+
+# 3. Access the application
+API Gateway: http://bidding-system-alb-137918056.us-west-2.elb.amazonaws.com/api/v1/items/test_item
+WebSocket: ws://bidding-system-alb-137918056.us-west-2.elb.amazonaws.com/ws/items/test_item
+
+EOT
+ecr_api_gateway_url = "661658682907.dkr.ecr.us-west-2.amazonaws.com/bidding-system/api-gateway"
+ecr_archival_worker_url = "661658682907.dkr.ecr.us-west-2.amazonaws.com/bidding-system/archival-worker"
+ecr_broadcast_service_url = "661658682907.dkr.ecr.us-west-2.amazonaws.com/bidding-system/broadcast-service"
+ecs_cluster_arn = "arn:aws:ecs:us-west-2:661658682907:cluster/bidding-system-cluster"
+ecs_cluster_name = "bidding-system-cluster"
+nats_nlb_dns = "bidding-system-nats-nlb-595ea0e8976860af.elb.us-west-2.amazonaws.com"
+private_subnet_ids = [
+  "subnet-0e52828f2acc82090",
+  "subnet-0a16fc6361f2530bb",
+]
+public_subnet_ids = [
+  "subnet-03647c0dcde4384bb",
+  "subnet-04e35a1db58b71912",
+]
+rds_address = "bidding-system-postgres.cafae2v9tyro.us-west-2.rds.amazonaws.com"
+rds_database_name = "bidding"
+rds_endpoint = "bidding-system-postgres.cafae2v9tyro.us-west-2.rds.amazonaws.com:5432"
+rds_port = 5432
+redis_endpoint = "bidding-system-redis.qv5a2n.0001.usw2.cache.amazonaws.com:6379"
+vpc_id = "vpc-0a7410acc5126e9dd"
