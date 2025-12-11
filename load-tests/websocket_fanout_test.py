@@ -45,7 +45,12 @@ class WebSocketFanOutTest:
     async def connect_client(self, client_id):
         """Connect a single WebSocket client"""
         try:
-            uri = f"{self.ws_url}/ws/items/{self.item_id}"
+            # Handle both cases: ws_url with or without /ws
+            # Remove trailing /ws if present, then add /ws/items/{id}
+            base_url = self.ws_url.rstrip('/')
+            if base_url.endswith('/ws'):
+                base_url = base_url[:-3]  # Remove /ws
+            uri = f"{base_url}/ws/items/{self.item_id}"
             ws = await websockets.connect(uri)
             return ws
         except Exception as e:
@@ -108,6 +113,22 @@ class WebSocketFanOutTest:
         print(f"Successfully connected {len(self.connections)} clients")
         return len(self.connections)
 
+    async def get_current_bid(self):
+        """Get the current bid for the item"""
+        url = f"{self.api_url}/api/v1/items/{self.item_id}"
+        loop = asyncio.get_running_loop()
+        try:
+            response = await loop.run_in_executor(
+                None,
+                functools.partial(requests.get, url)
+            )
+            if response.status_code == 200:
+                data = response.json()
+                return data.get("current_bid", 0.0)
+        except Exception as e:
+            print(f"Failed to get current bid: {e}")
+        return 0.0
+
     async def send_bid(self, bid_amount):
         """Send a bid via HTTP API and record the timestamp"""
         send_time = time.time()
@@ -146,10 +167,20 @@ class WebSocketFanOutTest:
         print(f"\nStarting fan-out test with {num_bids} bids, {interval}s interval...")
         print(f"Watching {len(self.connections)} connections\n")
 
+        # Get current bid and start from a higher amount
+        current_bid = await self.get_current_bid()
+        # If item is new (current_bid = 0), start from $100, otherwise start from current + 1
+        if current_bid == 0:
+            start_amount = 100.0
+            print(f"New item detected, starting from: ${start_amount:.2f}\n")
+        else:
+            start_amount = max(100.0, current_bid + 1.0)
+            print(f"Current bid: ${current_bid:.2f}, starting from: ${start_amount:.2f}\n")
+
         results = []
 
         for bid_num in range(num_bids):
-            bid_amount = 100.0 + bid_num
+            bid_amount = start_amount + bid_num
 
             # Send bid
             send_time, response = await self.send_bid(bid_amount)
@@ -371,7 +402,7 @@ async def main():
     parser.add_argument("--interval", type=int, default=5, help="Seconds between bids (default: 5)")
     parser.add_argument("--ws-url", type=str, default="ws://localhost:8081", help="WebSocket server URL")
     parser.add_argument("--api-url", type=str, default="http://localhost:8080", help="API server URL")
-    parser.add_argument("--item-id", type=str, default="fanout_test_item", help="Item ID to test")
+    parser.add_argument("--item-id", type=str, default=None, help="Item ID to test (default: auto-generate unique ID)")
     parser.add_argument(
         "--use-client-time",
         action="store_true",
@@ -392,6 +423,13 @@ async def main():
     parser.add_argument("--duration", type=int, default=60, help="Duration in seconds for listen-only mode (default: 60)")
 
     args = parser.parse_args()
+
+    # Generate unique item ID if not provided (ensures fresh start for each test)
+    if args.item_id is None:
+        import uuid
+        args.item_id = f"test_item_{uuid.uuid4().hex[:8]}"
+        print(f"Using auto-generated item ID: {args.item_id}")
+        print(f"  (Each test run will start with a fresh item at $0.00)")
 
     test = WebSocketFanOutTest(
         ws_url=args.ws_url,

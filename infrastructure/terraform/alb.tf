@@ -90,31 +90,10 @@ resource "aws_lb_listener" "http" {
   }
 }
 
-# Listener Rule for API Gateway (default)
-resource "aws_lb_listener_rule" "api_gateway" {
-  listener_arn = aws_lb_listener.http.arn
-  priority     = 100
-
-  action {
-    type             = "forward"
-    target_group_arn = aws_lb_target_group.api_gateway.arn
-  }
-
-  condition {
-    path_pattern {
-      values = ["/api/*", "/health"]
-    }
-  }
-
-  tags = {
-    Name = "${var.project_name}-api-rule"
-  }
-}
-
-# Listener Rule for WebSocket Broadcast Service
+# Listener Rule for WebSocket Broadcast Service (higher priority - evaluated first)
 resource "aws_lb_listener_rule" "broadcast_service" {
   listener_arn = aws_lb_listener.http.arn
-  priority     = 200
+  priority     = 50
 
   action {
     type             = "forward"
@@ -129,5 +108,26 @@ resource "aws_lb_listener_rule" "broadcast_service" {
 
   tags = {
     Name = "${var.project_name}-websocket-rule"
+  }
+}
+
+# Listener Rule for API Gateway
+resource "aws_lb_listener_rule" "api_gateway" {
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 200
+
+  action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.api_gateway.arn
+  }
+
+  condition {
+    path_pattern {
+      values = ["/api/*", "/health"]
+    }
+  }
+
+  tags = {
+    Name = "${var.project_name}-api-rule"
   }
 }

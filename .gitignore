@@ -1,0 +1,7 @@
+# Ignore Sprint1 folder (work in progress)
+/Sprint1-Nov10/
+
+# Add any other local or ephemeral ignores below
+/docs/
+
+gemeni.txt

@@ -100,8 +100,9 @@ output "deployment_commands" {
     docker push ${aws_ecr_repository.archival_worker.repository_url}:latest
 
     # 2. Update ECS services to use new images
-    aws ecs update-service --cluster ${aws_ecs_cluster.main.name} --service ${aws_ecs_service.api_gateway_simple.name} --force-new-deployment --region ${var.aws_region}
-    aws ecs update-service --cluster ${aws_ecs_cluster.main.name} --service ${aws_ecs_service.broadcast_service_simple.name} --force-new-deployment --region ${var.aws_region}
+    aws ecs update-service --cluster ${aws_ecs_cluster.main.name} --service ${aws_ecs_service.api_gateway.name} --force-new-deployment --region ${var.aws_region}
+    aws ecs update-service --cluster ${aws_ecs_cluster.main.name} --service ${aws_ecs_service.broadcast_service.name} --force-new-deployment --region ${var.aws_region}
+    aws ecs update-service --cluster ${aws_ecs_cluster.main.name} --service ${aws_ecs_service.archival_worker.name} --force-new-deployment --region ${var.aws_region}
 
     # 3. Access the application
     API Gateway: http://${aws_lb.main.dns_name}/api/v1/items/test_item
